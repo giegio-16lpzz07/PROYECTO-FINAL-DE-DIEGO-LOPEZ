@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <h1>El cambio climático no es abstracto en Panamá.</h1>
+    <p class="hero-subtitle">Ya pasó aquí. Elige tu ciudad y mira cómo han cambiado su temperatura y su lluvia desde 1940.</p>
+</section>
+
+<section class="city-grid">
+    {% for city in cities %}
+    <a class="city-card" href="{{ url_for('city_detail', slug=city.slug) }}">
+        <h2>{{ city.name }}</h2>
+        <p>{{ city.region }}</p>
+        <span class="card-link">Ver datos →</span>
+    </a>
+    {% endfor %}
+</section>
+{% endblock %}

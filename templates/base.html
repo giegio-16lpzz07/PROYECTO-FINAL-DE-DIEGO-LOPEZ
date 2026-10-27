@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ClimaPTY{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <a href="{{ url_for('index') }}" class="logo">ClimaPTY 🇵🇦</a>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <p>Datos: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (reanálisis ERA5).</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

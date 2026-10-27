@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Página no encontrada · ClimaPTY{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>No encontramos esa página</h1>
+    <p class="hero-subtitle">Puede que la ciudad no esté en nuestra lista todavía. Estas son las que tenemos:</p>
+</section>
+
+<section class="city-grid">
+    {% for city in cities %}
+    <a class="city-card" href="{{ url_for('city_detail', slug=city.slug) }}">
+        <h2>{{ city.name }}</h2>
+        <p>{{ city.region }}</p>
+    </a>
+    {% endfor %}
+</section>
+{% endblock %}

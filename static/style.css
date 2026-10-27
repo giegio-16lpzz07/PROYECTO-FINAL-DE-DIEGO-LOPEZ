@@ -1,0 +1,221 @@
+/* ===== Colores (variables) ===== */
+:root {
+    --bg: #fcfcfb;
+    --card-bg: #ffffff;
+    --text: #0b0b0b;
+    --text-muted: #52514e;
+    --border: #e4e3df;
+    --grid-color: #ecebe7;
+    --accent: #2a78d6;
+    --temp-color: #eb6834;   /* naranja: temperatura */
+    --rain-color: #2a78d6;   /* azul: lluvia */
+    --error-bg: #fdecec;
+    --error-border: #e34948;
+}
+
+/* Modo oscuro automático según la configuración del celular o computadora */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #1a1a19;
+        --card-bg: #242423;
+        --text: #f0efec;
+        --text-muted: #c3c2b7;
+        --border: #3a3a38;
+        --grid-color: #33332f;
+        --accent: #3987e5;
+        --temp-color: #d95926;
+        --rain-color: #3987e5;
+        --error-bg: #3a1f1f;
+        --error-border: #e66767;
+    }
+}
+
+/* ===== Base ===== */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    background: var(--bg);
+    color: var(--text);
+}
+
+a {
+    color: var(--accent);
+}
+
+.container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 16px 48px;
+}
+
+/* ===== Encabezado y pie ===== */
+.site-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.logo {
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.site-footer {
+    padding: 24px 16px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+/* ===== Inicio ===== */
+.hero {
+    padding: 48px 0 32px;
+}
+
+.hero h1 {
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    line-height: 1.15;
+    margin: 0 0 12px;
+}
+
+.hero-subtitle {
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    margin: 0;
+    max-width: 40em;
+}
+
+.city-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.city-card {
+    display: block;
+    padding: 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.15s, transform 0.15s;
+}
+
+.city-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.city-card h2 {
+    margin: 0 0 4px;
+    font-size: 1.25rem;
+}
+
+.city-card p {
+    margin: 0 0 12px;
+    color: var(--text-muted);
+}
+
+.card-link {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* ===== Página de ciudad ===== */
+.back-link {
+    display: inline-block;
+    margin: 24px 0 8px;
+    text-decoration: none;
+}
+
+.region {
+    margin: -12px 0 24px;
+    color: var(--text-muted);
+}
+
+.highlight {
+    padding: 24px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.highlight-number {
+    font-size: clamp(3rem, 14vw, 5rem);
+    font-weight: 800;
+    line-height: 1;
+    margin: 0 0 8px;
+    color: var(--temp-color);
+}
+
+.highlight-text,
+.stat-text {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+.stat-row {
+    margin-bottom: 16px;
+}
+
+.stat {
+    padding: 20px 24px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 4px;
+}
+
+.chart-card {
+    padding: 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.chart-card h2 {
+    font-size: 1.05rem;
+    margin: 0 0 12px;
+}
+
+/* El gráfico necesita un contenedor con altura fija para ser responsive */
+.chart-box {
+    position: relative;
+    height: 280px;
+}
+
+.data-note {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.error-box {
+    padding: 20px 24px;
+    background: var(--error-bg);
+    border: 1px solid var(--error-border);
+    border-radius: 12px;
+}
+
+.error-box h2 {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+}
+
+.error-box p {
+    margin: 0;
+}

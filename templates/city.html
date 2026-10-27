@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}{{ city.name }} · ClimaPTY{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('index') }}" class="back-link">← Todas las ciudades</a>
+<h1>{{ city.name }}</h1>
+<p class="region">{{ city.region }}</p>
+
+{% if error %}
+    <div class="error-box">
+        <h2>No pudimos cargar los datos</h2>
+        <p>{{ error }}</p>
+    </div>
+{% else %}
+    <section class="highlight">
+        <p class="highlight-number">{{ "%+.1f"|format(climate.temp_diff) }} °C</p>
+        <p class="highlight-text">
+            Diferencia de temperatura media entre {{ climate.recent_label }}
+            ({{ "%.1f"|format(climate.recent_temp) }} °C)
+            y {{ climate.baseline_label }} ({{ "%.1f"|format(climate.baseline_temp) }} °C).
+        </p>
+    </section>
+
+    <section class="stat-row">
+        <div class="stat">
+            <p class="stat-number">{{ "%+.1f"|format(climate.rain_change_pct) }} %</p>
+            <p class="stat-text">
+                Cambio en la lluvia anual promedio:
+                {{ "%.0f"|format(climate.recent_rain) }} mm/año en {{ climate.recent_label }}
+                vs {{ "%.0f"|format(climate.baseline_rain) }} mm/año en {{ climate.baseline_label }}.
+            </p>
+        </div>
+    </section>
+
+    <section class="chart-card">
+        <h2>Temperatura media anual (°C)</h2>
+        <div class="chart-box">
+            <canvas id="temp-chart" aria-label="Gráfico de línea de la temperatura media anual"></canvas>
+        </div>
+    </section>
+
+    <section class="chart-card">
+        <h2>Lluvia total anual (mm)</h2>
+        <div class="chart-box">
+            <canvas id="rain-chart" aria-label="Gráfico de barras de la lluvia total anual"></canvas>
+        </div>
+    </section>
+
+    <p class="data-note">
+        Datos de reanálisis ERA5 vía Open-Meteo; representan un área aproximada alrededor de la ciudad,
+        no una estación meteorológica exacta.
+        (Punto de la cuadrícula usado: {{ climate.grid_latitude }}, {{ climate.grid_longitude }}.)
+    </p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not error %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    // Datos que vienen de Python (Flask los convierte a JSON con el filtro tojson).
+    const years = {{ climate.years | tojson }};
+    const temps = {{ climate.temps | tojson }};
+    const rains = {{ climate.rains | tojson }};
+
+    // Leemos los colores desde style.css para que cambien solos en modo oscuro.
+    const styles = getComputedStyle(document.documentElement);
+    const tempColor = styles.getPropertyValue("--temp-color").trim();
+    const rainColor = styles.getPropertyValue("--rain-color").trim();
+    const textColor = styles.getPropertyValue("--text-muted").trim();
+    const gridColor = styles.getPropertyValue("--grid-color").trim();
+
+    // Opciones comunes a los dos gráficos.
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },  // el tooltip aparece al pasar por cualquier punto del eje X
+        plugins: { legend: { display: false } },            // una sola serie: el título ya dice qué es
+        scales: {
+            x: { ticks: { color: textColor, maxTicksLimit: 9 }, grid: { display: false } },
+            y: { ticks: { color: textColor }, grid: { color: gridColor } },
+        },
+    };
+
+    new Chart(document.getElementById("temp-chart"), {
+        type: "line",
+        data: {
+            labels: years,
+            datasets: [{
+                label: "Temperatura media (°C)",
+                data: temps,
+                borderColor: tempColor,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+            }],
+        },
+        options: commonOptions,
+    });
+
+    new Chart(document.getElementById("rain-chart"), {
+        type: "bar",
+        data: {
+            labels: years,
+            datasets: [{
+                label: "Lluvia total (mm)",
+                data: rains,
+                backgroundColor: rainColor,
+                borderRadius: 2,
+            }],
+        },
+        options: commonOptions,
+    });
+</script>
+{% endif %}
+{% endblock %}

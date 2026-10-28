@@ -9,6 +9,8 @@
     --accent: #2a78d6;
     --temp-color: #eb6834;   /* naranja: temperatura */
     --rain-color: #2a78d6;   /* azul: lluvia */
+    --trend-color: #0b0b0b;  /* tinta: línea de tendencia */
+    --drought-color: #eda100; /* ámbar: año de sequía */
     --error-bg: #fdecec;
     --error-border: #e34948;
 }
@@ -25,6 +27,8 @@
         --accent: #3987e5;
         --temp-color: #d95926;
         --rain-color: #3987e5;
+        --trend-color: #f0efec;
+        --drought-color: #c98500;
         --error-bg: #3a1f1f;
         --error-border: #e66767;
     }
@@ -197,6 +201,40 @@ a {
 .chart-box {
     position: relative;
     height: 280px;
+}
+
+/* Leyenda propia del gráfico de lluvia */
+.chart-legend {
+    margin: -4px 0 12px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    vertical-align: -1px;
+    margin-left: 8px;
+}
+
+.swatch:first-child {
+    margin-left: 0;
+}
+
+.swatch-rain {
+    background: var(--rain-color);
+}
+
+.swatch-drought {
+    background: var(--drought-color);
+}
+
+.chart-caption {
+    margin: 12px 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
 }
 
 .data-note {

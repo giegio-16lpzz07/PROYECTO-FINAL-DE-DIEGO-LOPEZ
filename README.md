@@ -10,13 +10,22 @@ El cambio climático se siente lejano para la mayoría de la gente: gráficos gl
 
 ClimaPTY conecta datos reales con acciones medibles:
 
-1. **Lo que le pasó a tu Panamá:** eliges tu ciudad y ves cómo cambiaron la temperatura y la lluvia desde 1940, con datos históricos reales (Open-Meteo / reanálisis ERA5).
+1. **Lo que le pasó a tu Panamá:** eliges tu ciudad y ves cómo cambiaron la temperatura y la lluvia desde 1950, con datos históricos reales (Open-Meteo / reanálisis ERA5).
 2. **Tu compromiso:** te registras, eliges acciones pensadas para Panamá (aire acondicionado, transporte, alimentación) y las registras. El sistema calcula el CO₂ evitado con factores de emisión citados.
 3. **Impacto colectivo:** un contador público muestra el CO₂ total evitado por todos los usuarios.
 
 ## ¿Cómo contribuye a frenar el cambio climático?
 
 El proyecto no "informa" solamente: convierte la información local en compromisos concretos y mide el resultado. El impacto se reporta con números reales de usuarios reales, no con estimaciones teóricas.
+
+## Metodología
+
+- **Fuente:** reanálisis ERA5 de Copernicus/ECMWF (cuadrícula de ~25 km), consultado vía la API histórica de Open-Meteo, de 1950 al último año completo.
+- **Un solo modelo:** forzamos `models=era5`. El modo por defecto de Open-Meteo mezcla varios modelos según la época, y ese cambio de fuente puede crear saltos falsos en una serie de varias décadas.
+- **Periodos de 30 años:** comparamos el promedio de 1951-1980 con el de los últimos 30 años completos (1996-2025), el estándar climatológico para que un año raro no domine el resultado.
+- **Tendencia lineal:** calculamos la pendiente de una regresión lineal simple sobre la temperatura anual de 1951 en adelante y la expresamos en °C por década.
+- **Control de calidad:** un año con algún día sin dato se excluye de todos los cálculos y se avisa en la terminal.
+- **Lluvia sin conclusiones:** la lluvia varía mucho de un año a otro (El Niño, La Niña) y el reanálisis la estima con más incertidumbre que la temperatura, así que la mostramos pero no afirmamos ninguna tendencia.
 
 ## Tecnologías
 

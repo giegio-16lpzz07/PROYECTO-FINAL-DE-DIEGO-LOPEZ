@@ -12,7 +12,7 @@
     {% for city in cities %}
     <a class="city-card" href="{{ url_for('city_detail', slug=city.slug) }}">
         <h2>{{ city.name }}</h2>
-        <p>{{ city.region }}</p>
+        <p>Zona de ~25 km alrededor de {{ city.name }}</p>
     </a>
     {% endfor %}
 </section>

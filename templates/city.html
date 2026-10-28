@@ -5,7 +5,7 @@
 {% block content %}
 <a href="{{ url_for('index') }}" class="back-link">← Todas las ciudades</a>
 <h1>{{ city.name }}</h1>
-<p class="region">{{ city.region }}</p>
+<p class="region">Zona de ~25 km alrededor de {{ city.name }}</p>
 
 {% if error %}
     <div class="error-box">
@@ -19,16 +19,15 @@
             Diferencia de temperatura media entre {{ climate.recent_label }}
             ({{ "%.1f"|format(climate.recent_temp) }} °C)
             y {{ climate.baseline_label }} ({{ "%.1f"|format(climate.baseline_temp) }} °C).
+            Periodos de 30 años, el estándar en climatología.
         </p>
     </section>
 
     <section class="stat-row">
         <div class="stat">
-            <p class="stat-number">{{ "%+.1f"|format(climate.rain_change_pct) }} %</p>
+            <p class="stat-number">{{ "%+.2f"|format(climate.trend_per_decade) }} °C por década</p>
             <p class="stat-text">
-                Cambio en la lluvia anual promedio:
-                {{ "%.0f"|format(climate.recent_rain) }} mm/año en {{ climate.recent_label }}
-                vs {{ "%.0f"|format(climate.baseline_rain) }} mm/año en {{ climate.baseline_label }}.
+                Tendencia lineal de la temperatura media anual, {{ climate.trend_label }}.
             </p>
         </div>
     </section>
@@ -36,21 +35,32 @@
     <section class="chart-card">
         <h2>Temperatura media anual (°C)</h2>
         <div class="chart-box">
-            <canvas id="temp-chart" aria-label="Gráfico de línea de la temperatura media anual"></canvas>
+            <canvas id="temp-chart" aria-label="Gráfico de línea de la temperatura media anual con su línea de tendencia"></canvas>
         </div>
     </section>
 
     <section class="chart-card">
         <h2>Lluvia total anual (mm)</h2>
+        <!-- Leyenda propia: explica por qué una barra tiene otro color -->
+        <p class="chart-legend">
+            <span class="swatch swatch-rain"></span> Lluvia anual
+            <span class="swatch swatch-drought"></span> Sequía {{ climate.drought_year }} (restricciones en el Canal)
+        </p>
         <div class="chart-box">
             <canvas id="rain-chart" aria-label="Gráfico de barras de la lluvia total anual"></canvas>
         </div>
+        <p class="chart-caption">
+            La lluvia varía mucho de un año a otro por fenómenos como El Niño y La Niña;
+            estos datos no bastan para afirmar una tendencia.
+        </p>
     </section>
 
     <p class="data-note">
-        Datos de reanálisis ERA5 vía Open-Meteo; representan un área aproximada alrededor de la ciudad,
-        no una estación meteorológica exacta.
-        (Punto de la cuadrícula usado: {{ climate.grid_latitude }}, {{ climate.grid_longitude }}.)
+        Datos de reanálisis ERA5 (Copernicus/ECMWF) vía Open-Meteo, resolución ~25 km.
+        Punto de la cuadrícula usado: {{ climate.grid_latitude }}, {{ climate.grid_longitude }}.
+        {% if climate.excluded_years %}
+            Años excluidos por datos incompletos: {{ climate.excluded_years | join(", ") }}.
+        {% endif %}
     </p>
 {% endif %}
 {% endblock %}
@@ -62,42 +72,64 @@
     // Datos que vienen de Python (Flask los convierte a JSON con el filtro tojson).
     const years = {{ climate.years | tojson }};
     const temps = {{ climate.temps | tojson }};
+    const trendLine = {{ climate.trend_line | tojson }};
     const rains = {{ climate.rains | tojson }};
+    const droughtYear = {{ climate.drought_year | tojson }};
 
     // Leemos los colores desde style.css para que cambien solos en modo oscuro.
     const styles = getComputedStyle(document.documentElement);
     const tempColor = styles.getPropertyValue("--temp-color").trim();
+    const trendColor = styles.getPropertyValue("--trend-color").trim();
     const rainColor = styles.getPropertyValue("--rain-color").trim();
+    const droughtColor = styles.getPropertyValue("--drought-color").trim();
     const textColor = styles.getPropertyValue("--text-muted").trim();
     const gridColor = styles.getPropertyValue("--grid-color").trim();
 
-    // Opciones comunes a los dos gráficos.
-    const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: "index", intersect: false },  // el tooltip aparece al pasar por cualquier punto del eje X
-        plugins: { legend: { display: false } },            // una sola serie: el título ya dice qué es
-        scales: {
-            x: { ticks: { color: textColor, maxTicksLimit: 9 }, grid: { display: false } },
-            y: { ticks: { color: textColor }, grid: { color: gridColor } },
-        },
+    // Ejes comunes a los dos gráficos.
+    const commonScales = {
+        x: { ticks: { color: textColor, maxTicksLimit: 9 }, grid: { display: false } },
+        y: { ticks: { color: textColor }, grid: { color: gridColor } },
     };
 
     new Chart(document.getElementById("temp-chart"), {
         type: "line",
         data: {
             labels: years,
-            datasets: [{
-                label: "Temperatura media (°C)",
-                data: temps,
-                borderColor: tempColor,
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 5,
-            }],
+            datasets: [
+                {
+                    label: "Temperatura media anual",
+                    data: temps,
+                    borderColor: tempColor,
+                    backgroundColor: tempColor,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                },
+                {
+                    label: "Tendencia lineal",
+                    data: trendLine,
+                    borderColor: trendColor,
+                    backgroundColor: trendColor,
+                    borderWidth: 2,
+                    borderDash: [6, 4],  // línea discontinua
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                },
+            ],
         },
-        options: commonOptions,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },  // el tooltip aparece al pasar por cualquier año
+            plugins: {
+                legend: { labels: { color: textColor, boxHeight: 2 } },  // dos series: hace falta leyenda
+            },
+            scales: commonScales,
+        },
     });
+
+    // Un color por barra: el año de la sequía va con otro color.
+    const barColors = years.map(year => year === droughtYear ? droughtColor : rainColor);
 
     new Chart(document.getElementById("rain-chart"), {
         type: "bar",
@@ -106,11 +138,25 @@
             datasets: [{
                 label: "Lluvia total (mm)",
                 data: rains,
-                backgroundColor: rainColor,
+                backgroundColor: barColors,
                 borderRadius: 2,
             }],
         },
-        options: commonOptions,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+                legend: { display: false },  // usamos la leyenda propia de arriba
+                tooltip: {
+                    callbacks: {
+                        // Texto extra en el tooltip de la barra de la sequía.
+                        footer: items => items[0].label == droughtYear ? "Sequía (restricciones en el Canal)" : "",
+                    },
+                },
+            },
+            scales: commonScales,
+        },
     });
 </script>
 {% endif %}

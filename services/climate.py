@@ -4,8 +4,10 @@ Este archivo no sabe nada de Flask ni de HTML. Solo recibe un slug de ciudad
 y devuelve un diccionario con números listos para mostrar.
 """
 
+import calendar
 import json
 import os
+import statistics
 from datetime import date
 
 import requests
@@ -13,16 +15,23 @@ import requests
 # Documentación: https://open-meteo.com/en/docs/historical-weather-api
 API_URL = "https://archive-api.open-meteo.com/v1/archive"
 
-# ERA5 es el reanálisis que empieza en 1940 (el más antiguo disponible).
-START_DATE = "1940-01-01"
+# Primer año que descargamos.
+START_YEAR = 1950
+START_DATE = f"{START_YEAR}-01-01"
+
+# Periodo de referencia de 30 años (estándar climatológico).
+BASELINE_START = 1951
+BASELINE_END = 1980
+
+# Primer año de la tendencia lineal (el último es el último año completo).
+TREND_START = 1951
+
+# Año que resaltamos en el gráfico de lluvia.
+DROUGHT_YEAR = 2023
 
 # Carpeta donde guardamos las respuestas de la API (data/cache/ en la raíz del proyecto).
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE_DIR = os.path.join(PROJECT_DIR, "data", "cache")
-
-# Década de referencia para comparar.
-BASELINE_START = 1950
-BASELINE_END = 1959
 
 # Coordenadas verificadas con el geocodificador de Open-Meteo (GeoNames).
 # Gardi Sugdub también se escribe "Cartí Sugtupu"; coincide con Wikipedia (09°28′14″N 78°57′40″W).
@@ -30,35 +39,30 @@ CITIES = {
     "ciudad-de-panama": {
         "name": "Ciudad de Panamá",
         "slug": "ciudad-de-panama",
-        "region": "Provincia de Panamá",
         "latitude": 8.9936,
         "longitude": -79.5197,
     },
     "colon": {
         "name": "Colón",
         "slug": "colon",
-        "region": "Provincia de Colón",
         "latitude": 9.3603,
         "longitude": -79.9002,
     },
     "david": {
         "name": "David",
         "slug": "david",
-        "region": "Provincia de Chiriquí",
         "latitude": 8.4273,
         "longitude": -82.4309,
     },
     "chitre": {
         "name": "Chitré",
         "slug": "chitre",
-        "region": "Provincia de Herrera",
         "latitude": 7.9601,
         "longitude": -80.4288,
     },
     "gardi-sugdub": {
         "name": "Gardi Sugdub",
         "slug": "gardi-sugdub",
-        "region": "Comarca Guna Yala",
         "latitude": 9.4707,
         "longitude": -78.9612,
     },
@@ -74,17 +78,6 @@ def get_last_complete_year():
     return date.today().year - 1
 
 
-def get_last_complete_decade(last_year):
-    """Devuelve (inicio, fin) de la última década completa.
-
-    Ejemplo: si el último año completo es 2025, la década 2020-2029 aún no
-    terminó, así que la última completa es 2010-2019.
-    """
-    decade_end = (last_year + 1) // 10 * 10 - 1
-    decade_start = decade_end - 9
-    return decade_start, decade_end
-
-
 def fetch_daily_data(city, end_date):
     """Pide a la API los datos diarios de temperatura media y precipitación."""
     params = {
@@ -94,7 +87,8 @@ def fetch_daily_data(city, end_date):
         "end_date": end_date,
         "daily": "temperature_2m_mean,precipitation_sum",
         "timezone": "America/Panama",
-        # Solo ERA5: la documentación lo recomienda para comparar décadas de forma consistente.
+        # Solo ERA5. Sin este parámetro la API usa "best_match", que mezcla varios
+        # modelos según la época y puede crear saltos falsos en una serie larga.
         "models": "era5",
     }
     try:
@@ -119,11 +113,12 @@ def load_daily_data(city):
     end_date = f"{get_last_complete_year()}-12-31"
     cache_path = os.path.join(CACHE_DIR, f"{city['slug']}.json")
 
-    # 1. Si ya tenemos el archivo y llega hasta la fecha que necesitamos, lo usamos.
+    # 1. Si ya tenemos el archivo y cubre exactamente el periodo que necesitamos, lo usamos.
     if os.path.exists(cache_path):
         with open(cache_path, encoding="utf-8") as cache_file:
             cached = json.load(cache_file)
-        if cached["daily"]["time"][-1] == end_date:
+        dates = cached["daily"]["time"]
+        if dates[0] == START_DATE and dates[-1] == end_date:
             return cached
 
     # 2. Si no, lo pedimos a la API y lo guardamos para la próxima vez.
@@ -137,37 +132,49 @@ def load_daily_data(city):
     return data
 
 
-def aggregate_by_year(daily):
-    """Convierte los datos diarios en una lista con un resumen por año.
+def aggregate_by_year(daily, city_name):
+    """Convierte los datos diarios en un resumen por año, con control de calidad.
 
-    Cada elemento es: {"year": 1940, "avg_temp": 26.1, "total_rain": 2300.5}
+    Devuelve dos cosas:
+    - yearly: lista de {"year": 1950, "avg_temp": 26.1, "total_rain": 2300.5}
+    - excluded_years: lista de años descartados por tener días sin datos
     """
     totals = {}  # año -> sumas parciales
     for day, temp, rain in zip(daily["time"], daily["temperature_2m_mean"], daily["precipitation_sum"]):
-        year = int(day[:4])  # "1940-01-01" -> 1940
+        year = int(day[:4])  # "1950-01-01" -> 1950
         if year not in totals:
-            totals[year] = {"temp_sum": 0, "temp_days": 0, "rain_sum": 0}
-        # La API puede devolver None si falta un dato; en ese caso lo saltamos.
+            totals[year] = {"temp_sum": 0, "temp_days": 0, "rain_sum": 0, "rain_days": 0}
+        # La API devuelve None si falta un dato: solo contamos los días válidos.
         if temp is not None:
             totals[year]["temp_sum"] += temp
             totals[year]["temp_days"] += 1
         if rain is not None:
             totals[year]["rain_sum"] += rain
+            totals[year]["rain_days"] += 1
 
     yearly = []
+    excluded_years = []
     for year in sorted(totals):
         values = totals[year]
-        if values["temp_days"] == 0:
+        expected_days = 366 if calendar.isleap(year) else 365
+        # Un año incompleto daría un promedio o un total engañoso, así que lo descartamos.
+        if values["temp_days"] < expected_days or values["rain_days"] < expected_days:
+            print(
+                f"ADVERTENCIA: {city_name} {year} excluido: "
+                f"{values['temp_days']} días con temperatura y {values['rain_days']} con lluvia "
+                f"de {expected_days}."
+            )
+            excluded_years.append(year)
             continue
         yearly.append({
             "year": year,
             "avg_temp": values["temp_sum"] / values["temp_days"],
             "total_rain": values["rain_sum"],
         })
-    return yearly
+    return yearly, excluded_years
 
 
-def decade_average(yearly, start_year, end_year, key):
+def period_average(yearly, start_year, end_year, key):
     """Promedio de un campo ("avg_temp" o "total_rain") entre dos años, ambos incluidos."""
     values = [item[key] for item in yearly if start_year <= item["year"] <= end_year]
     if not values:
@@ -175,32 +182,58 @@ def decade_average(yearly, start_year, end_year, key):
     return sum(values) / len(values)
 
 
+def linear_trend(yearly, start_year, end_year):
+    """Regresión lineal simple de la temperatura anual.
+
+    Devuelve (pendiente, intercepto): temperatura ≈ intercepto + pendiente × año.
+    La pendiente está en °C por año.
+    """
+    points = [item for item in yearly if start_year <= item["year"] <= end_year]
+    if len(points) < 2:
+        raise ClimateDataError("No hay suficientes años para calcular la tendencia.")
+    years = [item["year"] for item in points]
+    temps = [item["avg_temp"] for item in points]
+    slope, intercept = statistics.linear_regression(years, temps)
+    return slope, intercept
+
+
 def get_city_climate(slug):
     """Función principal: devuelve todo lo que la página de la ciudad necesita."""
     city = CITIES[slug]
     data = load_daily_data(city)
-    yearly = aggregate_by_year(data["daily"])
+    yearly, excluded_years = aggregate_by_year(data["daily"], city["name"])
 
-    recent_start, recent_end = get_last_complete_decade(get_last_complete_year())
+    last_year = get_last_complete_year()
+    recent_start = last_year - 29  # los últimos 30 años completos (1996-2025)
 
-    baseline_temp = decade_average(yearly, BASELINE_START, BASELINE_END, "avg_temp")
-    recent_temp = decade_average(yearly, recent_start, recent_end, "avg_temp")
-    baseline_rain = decade_average(yearly, BASELINE_START, BASELINE_END, "total_rain")
-    recent_rain = decade_average(yearly, recent_start, recent_end, "total_rain")
+    baseline_temp = period_average(yearly, BASELINE_START, BASELINE_END, "avg_temp")
+    recent_temp = period_average(yearly, recent_start, last_year, "avg_temp")
+
+    slope, intercept = linear_trend(yearly, TREND_START, last_year)
+
+    # Valores de la recta de tendencia para dibujarla; None = sin punto (fuera del periodo).
+    trend_line = []
+    for item in yearly:
+        if TREND_START <= item["year"] <= last_year:
+            trend_line.append(round(intercept + slope * item["year"], 2))
+        else:
+            trend_line.append(None)
 
     return {
         "baseline_label": f"{BASELINE_START}-{BASELINE_END}",
-        "recent_label": f"{recent_start}-{recent_end}",
+        "recent_label": f"{recent_start}-{last_year}",
+        "trend_label": f"{TREND_START}-{last_year}",
         "baseline_temp": baseline_temp,
         "recent_temp": recent_temp,
         "temp_diff": recent_temp - baseline_temp,
-        "baseline_rain": baseline_rain,
-        "recent_rain": recent_rain,
-        "rain_change_pct": (recent_rain - baseline_rain) / baseline_rain * 100,
+        "trend_per_decade": slope * 10,
+        "excluded_years": excluded_years,
         # Listas para los gráficos (redondeadas para que el navegador no reciba 15 decimales).
         "years": [item["year"] for item in yearly],
         "temps": [round(item["avg_temp"], 2) for item in yearly],
+        "trend_line": trend_line,
         "rains": [round(item["total_rain"], 1) for item in yearly],
+        "drought_year": DROUGHT_YEAR,
         # Coordenadas reales del punto de la cuadrícula ERA5 que usó la API.
         "grid_latitude": data["latitude"],
         "grid_longitude": data["longitude"],

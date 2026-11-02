@@ -37,9 +37,9 @@
 
         <form method="post" class="action-form">
             <input type="hidden" name="action_id" value="{{ action.id }}">
-            <label for="quantity-{{ action.id }}">Cantidad ({{ action.unit_label }})</label>
+            <label for="quantity-{{ action.id }}">Cantidad ({{ action.unit_label }}, máximo {{ max_quantities[action.id] }})</label>
             <div class="action-form-row">
-                <input type="number" id="quantity-{{ action.id }}" name="quantity" value="1" min="1" step="1" required>
+                <input type="number" id="quantity-{{ action.id }}" name="quantity" value="1" min="1" max="{{ max_quantities[action.id] }}" step="1" required>
                 <button type="submit">Registrar</button>
             </div>
         </form>

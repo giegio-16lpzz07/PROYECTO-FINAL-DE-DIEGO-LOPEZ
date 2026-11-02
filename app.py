@@ -36,6 +36,19 @@ login_manager.login_message = "Inicia sesión para ver esa página."
 
 MIN_PASSWORD_LENGTH = 8
 
+# Máximo por registro según la unidad, para que nadie infle el contador público.
+MAX_QUANTITY_BY_UNIT = {
+    "km": 100,
+    "porción de 150 g": 3,
+    "día": 1,
+    "carga": 3,
+}
+
+
+def get_max_quantity(action):
+    """Máximo permitido por registro para una acción. Si su unidad no está en la lista, 1."""
+    return MAX_QUANTITY_BY_UNIT.get(action.unit_label, 1)
+
 PENDING_FACTOR_NOTE = (
     "Factor en verificación: usaremos el factor oficial de la red eléctrica de Panamá "
     "(Secretaría Nacional de Energía)."
@@ -169,6 +182,12 @@ def my_impact():
             flash("Esa acción no existe.", "error")
         elif quantity is None or quantity < 1:
             flash("La cantidad debe ser un número entero de 1 o más.", "error")
+        elif quantity > get_max_quantity(action):
+            flash(
+                f"No se registró: el máximo por registro para \"{action.name}\" "
+                f"es {get_max_quantity(action)} ({action.unit_label}).",
+                "error",
+            )
         else:
             log = ActionLog(user_id=current_user.id, action_id=action.id, date=date.today(), quantity=quantity)
             db.session.add(log)
@@ -178,6 +197,8 @@ def my_impact():
         return redirect(url_for("my_impact"))
 
     actions = Action.query.order_by(Action.id).all()
+    # Máximo de cada acción, para mostrarlo en su formulario: {id de la acción: máximo}
+    max_quantities = {action.id: get_max_quantity(action) for action in actions}
     # Solo los registros de este usuario, lo más reciente primero.
     logs = (
         ActionLog.query.filter_by(user_id=current_user.id)
@@ -188,6 +209,7 @@ def my_impact():
     return render_template(
         "my_impact.html",
         actions=actions,
+        max_quantities=max_quantities,
         history=history,
         user_co2=total_co2(logs),
         pending_count=count_pending(logs),

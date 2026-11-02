@@ -75,6 +75,7 @@ La primera vez que abres una ciudad, la app descarga más de 75 años de datos d
 ## Pendiente antes de publicar
 
 - Protección CSRF en los formularios (Flask-WTF).
+- Caché de datos climáticos en el servidor, o un respaldo si Open-Meteo no responde (`data/cache/` no se sube a Git).
 
 ## Fuentes
 

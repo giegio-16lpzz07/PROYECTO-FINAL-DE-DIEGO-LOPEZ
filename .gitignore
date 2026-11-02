@@ -15,3 +15,9 @@ data/cache/
 .DS_Store
 .vscode/
 .idea/
+
+# Base de datos local (SQLite)
+instance/
+
+# Kit de skills externo, no es parte del proyecto
+claude-webkit/

@@ -9,9 +9,26 @@
 <body>
     <header class="site-header">
         <a href="{{ url_for('index') }}" class="logo">ClimaPTY 🇵🇦</a>
+        <!-- La barra cambia según haya sesión o no -->
+        <nav class="site-nav">
+            {% if current_user.is_authenticated %}
+                <span class="nav-user">Hola, {{ current_user.username }}</span>
+                <a href="{{ url_for('logout') }}">Salir</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Entrar</a>
+                <a href="{{ url_for('register') }}" class="nav-button">Crear cuenta</a>
+            {% endif %}
+        </nav>
     </header>
 
     <main class="container">
+        <!-- Mensajes cortos de una sola vez (errores, confirmaciones) -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <p class="flash flash-{{ category }}">{{ message }}</p>
+            {% endfor %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </main>
 

@@ -1,10 +1,49 @@
 """Rutas de la aplicación web ClimaPTY."""
 
-from flask import Flask, abort, render_template
+import os
 
+from dotenv import load_dotenv
+from flask import Flask, abort, flash, redirect, render_template, request, url_for
+from flask_login import LoginManager, current_user, login_required, login_user, logout_user
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from models import User, db
 from services.climate import CITIES, ClimateDataError, get_city_climate
 
+# Lee el archivo .env y pone sus valores en las variables de entorno.
+load_dotenv()
+
 app = Flask(__name__)
+
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+if not app.config["SECRET_KEY"]:
+    raise RuntimeError("Falta SECRET_KEY. Copia .env.example como .env y pon una clave.")
+
+# Ruta relativa: Flask-SQLAlchemy la guarda en la carpeta instance/ (instance/climapty.db).
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///climapty.db"
+db.init_app(app)
+
+# Crea las tablas si todavía no existen.
+with app.app_context():
+    db.create_all()
+
+# Flask-Login: si alguien sin sesión entra a una página protegida, lo manda a "login".
+login_manager = LoginManager(app)
+login_manager.login_view = "login"
+login_manager.login_message = "Inicia sesión para ver esa página."
+
+MIN_PASSWORD_LENGTH = 8
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Flask-Login guarda solo el id en la cookie; con esta función recupera al usuario completo."""
+    return db.session.get(User, int(user_id))
+
+
+def is_safe_next_url(url):
+    """Solo permitimos volver a páginas de nuestro propio sitio (evita redirigir a sitios externos)."""
+    return bool(url) and url.startswith("/") and not url.startswith("//") and "\\" not in url
 
 
 @app.route("/")
@@ -28,6 +67,63 @@ def city_detail(slug):
         return render_template("city.html", city=city, error=str(error)), 503
 
     return render_template("city.html", city=city, climate=climate)
+
+
+@app.route("/registro", methods=["GET", "POST"])
+def register():
+    """Formulario para crear una cuenta."""
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+
+        if not username:
+            flash("Escribe un nombre de usuario.", "error")
+        elif len(password) < MIN_PASSWORD_LENGTH:
+            flash(f"La contraseña debe tener al menos {MIN_PASSWORD_LENGTH} caracteres.", "error")
+        elif User.query.filter_by(username=username).first():
+            flash("Ese nombre de usuario ya existe. Elige otro.", "error")
+        else:
+            user = User(username=username, password_hash=generate_password_hash(password))
+            db.session.add(user)
+            db.session.commit()
+            flash("Cuenta creada. Ya puedes iniciar sesión.", "success")
+            return redirect(url_for("login"))
+
+        # Si hubo un error, volvemos a mostrar el formulario con el nombre que escribió.
+        return render_template("register.html", username=username), 400
+
+    return render_template("register.html", username="")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Formulario para iniciar sesión."""
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        user = User.query.filter_by(username=username).first()
+
+        # Mismo mensaje si el usuario no existe o si la contraseña está mal:
+        # así nadie puede averiguar qué usuarios existen.
+        if user is None or not check_password_hash(user.password_hash, password):
+            flash("Usuario o contraseña incorrectos.", "error")
+            return render_template("login.html", username=username), 401
+
+        login_user(user)
+        next_url = request.args.get("next")
+        if is_safe_next_url(next_url):
+            return redirect(next_url)
+        return redirect(url_for("index"))
+
+    return render_template("login.html", username="")
+
+
+@app.route("/logout")
+def logout():
+    """Cierra la sesión."""
+    logout_user()
+    flash("Sesión cerrada.", "success")
+    return redirect(url_for("index"))
 
 
 @app.errorhandler(404)

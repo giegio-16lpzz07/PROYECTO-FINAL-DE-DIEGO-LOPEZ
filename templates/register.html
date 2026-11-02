@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Crear cuenta · ClimaPTY{% endblock %}
+
+{% block content %}
+<section class="form-card">
+    <h1>Crear cuenta</h1>
+    <form method="post">
+        <label for="username">Usuario</label>
+        <input type="text" id="username" name="username" value="{{ username }}" required maxlength="80" autocomplete="username">
+
+        <label for="password">Contraseña (mínimo 8 caracteres)</label>
+        <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password">
+
+        <button type="submit">Crear cuenta</button>
+    </form>
+    <p class="form-footer">¿Ya tienes cuenta? <a href="{{ url_for('login') }}">Entra</a></p>
+</section>
+{% endblock %}

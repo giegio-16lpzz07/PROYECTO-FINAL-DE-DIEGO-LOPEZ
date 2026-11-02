@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Entrar · ClimaPTY{% endblock %}
+
+{% block content %}
+<section class="form-card">
+    <h1>Entrar</h1>
+    <!-- Sin "action": el formulario se envía a la misma dirección (y conserva ?next=...) -->
+    <form method="post">
+        <label for="username">Usuario</label>
+        <input type="text" id="username" name="username" value="{{ username }}" required autocomplete="username">
+
+        <label for="password">Contraseña</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password">
+
+        <button type="submit">Entrar</button>
+    </form>
+    <p class="form-footer">¿No tienes cuenta? <a href="{{ url_for('register') }}">Crea una</a></p>
+</section>
+{% endblock %}

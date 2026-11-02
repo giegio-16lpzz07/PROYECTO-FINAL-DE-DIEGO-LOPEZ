@@ -63,6 +63,10 @@ Luego abre <http://localhost:5001> en el navegador. (Usamos el puerto 5001 porqu
 
 La primera vez que abres una ciudad, la app descarga más de 80 años de datos diarios y tarda unos segundos. Después se guardan en `data/cache/` y las siguientes visitas son instantáneas.
 
+## Pendiente antes de publicar
+
+- Protección CSRF en los formularios (Flask-WTF).
+
 ## Fuentes
 
 - ONU, La crisis climática: <https://www.un.org/es/un75/climate-crisis-race-we-can-win>

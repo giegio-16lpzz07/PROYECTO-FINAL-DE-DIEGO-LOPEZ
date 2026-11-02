@@ -29,13 +29,13 @@ El proyecto no "informa" solamente: convierte la información local en compromis
 
 ## Tecnologías
 
-Python, Flask, SQLite, Flask-Login, Chart.js, API de Open-Meteo.
+Python, Flask, SQLite (Flask-SQLAlchemy), Flask-Login, Chart.js, API de Open-Meteo.
 
 ## Estado del proyecto
 
 - [x] Día 1: estructura, datos históricos por ciudad
-- [ ] Día 2: usuarios y compromisos
-- [ ] Día 3: cálculo de CO₂ con fuentes, contador público
+- [x] Día 2: usuarios y compromisos
+- [x] Día 3: cálculo de CO₂ con fuentes, contador público
 - [ ] Día 4: publicación en internet y primeros usuarios
 - [ ] Día 5: pruebas y presentación
 
@@ -55,13 +55,22 @@ source venv/bin/activate        # En Windows: venv\Scripts\activate
 # 3. Instalar las dependencias
 pip install -r requirements.txt
 
-# 4. Ejecutar la aplicación
+# 4. Crear el archivo .env con una clave secreta
+cp .env.example .env
+python -c "import secrets; print(secrets.token_hex(32))"   # copia el resultado en SECRET_KEY dentro de .env
+
+# 5. Crear las acciones en la base de datos (instance/climapty.db)
+flask seed
+
+# 6. Ejecutar la aplicación
 python app.py
 ```
 
+`flask seed` se puede correr varias veces: actualiza las acciones existentes y no las duplica.
+
 Luego abre <http://localhost:5001> en el navegador. (Usamos el puerto 5001 porque en macOS el 5000 lo ocupa el Receptor AirPlay.)
 
-La primera vez que abres una ciudad, la app descarga más de 80 años de datos diarios y tarda unos segundos. Después se guardan en `data/cache/` y las siguientes visitas son instantáneas.
+La primera vez que abres una ciudad, la app descarga más de 75 años de datos diarios y tarda unos segundos. Después se guardan en `data/cache/` y las siguientes visitas son instantáneas.
 
 ## Pendiente antes de publicar
 
@@ -72,3 +81,5 @@ La primera vez que abres una ciudad, la app descarga más de 80 años de datos d
 - ONU, La crisis climática: <https://www.un.org/es/un75/climate-crisis-race-we-can-win>
 - ONU, Causas y efectos del cambio climático: <https://www.un.org/es/climatechange/science/causes-effects-climate-change>
 - Open-Meteo Historical Weather API: <https://open-meteo.com/en/docs/historical-weather-api>
+- EPA, Greenhouse Gas Emissions from a Typical Passenger Vehicle (~400 g de CO₂ por milla): <https://www.epa.gov/greenvehicles/greenhouse-gas-emissions-typical-passenger-vehicle>
+- Poore & Nemecek (2018) vía Our World in Data, emisiones por kg de alimento (carne de res: 99.48 kg CO₂e/kg): <https://ourworldindata.org/grapher/ghg-per-kg-poore>

@@ -1,14 +1,16 @@
 """Rutas de la aplicación web ClimaPTY."""
 
 import os
+from datetime import date
 
 from dotenv import load_dotenv
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 from flask_login import LoginManager, current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from models import User, db
+from models import Action, ActionLog, User, db
 from services.climate import CITIES, ClimateDataError, get_city_climate
+from services.impact import count_pending, log_co2, total_co2
 
 # Lee el archivo .env y pone sus valores en las variables de entorno.
 load_dotenv()
@@ -34,6 +36,61 @@ login_manager.login_message = "Inicia sesión para ver esa página."
 
 MIN_PASSWORD_LENGTH = 8
 
+PENDING_FACTOR_NOTE = (
+    "Factor en verificación: usaremos el factor oficial de la red eléctrica de Panamá "
+    "(Secretaría Nacional de Energía)."
+)
+
+# Las acciones que crea "flask seed". El slug es el identificador fijo de cada una.
+SEED_ACTIONS = [
+    {
+        "slug": "aire-25-grados",
+        "name": "Subir el aire acondicionado a 25°C o más",
+        "unit_label": "día",
+        "co2_kg_per_unit": None,
+        "source_url": None,
+        "assumptions": PENDING_FACTOR_NOTE,
+    },
+    {
+        "slug": "aire-apagado-4-horas",
+        "name": "Apagar el aire acondicionado al menos 4 horas",
+        "unit_label": "día",
+        "co2_kg_per_unit": None,
+        "source_url": None,
+        "assumptions": PENDING_FACTOR_NOTE,
+    },
+    {
+        "slug": "metro-o-bus",
+        "name": "Usar Metro o bus en vez de carro",
+        "unit_label": "km",
+        "co2_kg_per_unit": 0.249,
+        "source_url": "https://www.epa.gov/greenvehicles/greenhouse-gas-emissions-typical-passenger-vehicle",
+        "assumptions": (
+            "EPA: ~400 g CO₂ por milla de un carro promedio (≈0.249 kg/km). "
+            "No restamos las emisiones del bus o Metro, así que es un máximo."
+        ),
+    },
+    {
+        "slug": "porcion-carne-res",
+        "name": "Porción de carne de res que no comí",
+        "unit_label": "porción de 150 g",
+        "co2_kg_per_unit": 14.92,
+        "source_url": "https://ourworldindata.org/grapher/ghg-per-kg-poore",
+        "assumptions": (
+            "Poore & Nemecek (2018): 99.48 kg CO₂e por kg de carne de res (ganado de carne). "
+            "Asume que no se reemplaza por otra proteína, así que es un máximo."
+        ),
+    },
+    {
+        "slug": "ropa-al-aire",
+        "name": "Secar la ropa al aire en vez de secadora",
+        "unit_label": "carga",
+        "co2_kg_per_unit": None,
+        "source_url": None,
+        "assumptions": PENDING_FACTOR_NOTE,
+    },
+]
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -46,10 +103,37 @@ def is_safe_next_url(url):
     return bool(url) and url.startswith("/") and not url.startswith("//") and "\\" not in url
 
 
+@app.cli.command("seed")
+def seed():
+    """Crea o actualiza las acciones. Se puede correr varias veces sin duplicar."""
+    for data in SEED_ACTIONS:
+        action = Action.query.filter_by(slug=data["slug"]).first()
+        if action is None:
+            action = Action(slug=data["slug"])
+            db.session.add(action)
+            print(f"Creada: {data['name']}")
+        else:
+            print(f"Actualizada: {data['name']}")
+        # Copiamos (o sobrescribimos) cada campo con el valor del seed.
+        action.name = data["name"]
+        action.unit_label = data["unit_label"]
+        action.co2_kg_per_unit = data["co2_kg_per_unit"]
+        action.source_url = data["source_url"]
+        action.assumptions = data["assumptions"]
+    db.session.commit()
+    print(f"Listo: {Action.query.count()} acciones en la base de datos.")
+
+
 @app.route("/")
 def index():
-    """Página de inicio: lista de ciudades."""
-    return render_template("index.html", cities=CITIES.values())
+    """Página de inicio: lista de ciudades y contador público."""
+    all_logs = ActionLog.query.all()
+    return render_template(
+        "index.html",
+        cities=CITIES.values(),
+        global_co2=total_co2(all_logs),
+        global_actions=len(all_logs),
+    )
 
 
 @app.route("/ciudad/<slug>")
@@ -67,6 +151,47 @@ def city_detail(slug):
         return render_template("city.html", city=city, error=str(error)), 503
 
     return render_template("city.html", city=city, climate=climate)
+
+
+@app.route("/mi-impacto", methods=["GET", "POST"])
+@login_required
+def my_impact():
+    """Registrar acciones y ver el impacto propio. Solo con sesión iniciada."""
+    if request.method == "POST":
+        # type=int convierte el texto a número; si no es un entero válido, devuelve None.
+        action_id = request.form.get("action_id", type=int)
+        quantity = request.form.get("quantity", type=int)
+        action = None
+        if action_id is not None:
+            action = db.session.get(Action, action_id)
+
+        if action is None:
+            flash("Esa acción no existe.", "error")
+        elif quantity is None or quantity < 1:
+            flash("La cantidad debe ser un número entero de 1 o más.", "error")
+        else:
+            log = ActionLog(user_id=current_user.id, action_id=action.id, date=date.today(), quantity=quantity)
+            db.session.add(log)
+            db.session.commit()
+            flash(f"Registrado: {action.name} ({quantity} {action.unit_label}).", "success")
+        # Redirigimos para que recargar la página no repita el registro.
+        return redirect(url_for("my_impact"))
+
+    actions = Action.query.order_by(Action.id).all()
+    # Solo los registros de este usuario, lo más reciente primero.
+    logs = (
+        ActionLog.query.filter_by(user_id=current_user.id)
+        .order_by(ActionLog.created_at.desc(), ActionLog.id.desc())
+        .all()
+    )
+    history = [{"log": log, "co2": log_co2(log)} for log in logs]
+    return render_template(
+        "my_impact.html",
+        actions=actions,
+        history=history,
+        user_co2=total_co2(logs),
+        pending_count=count_pending(logs),
+    )
 
 
 @app.route("/registro", methods=["GET", "POST"])

@@ -358,3 +358,122 @@ button,
     margin: 16px 0 0;
     color: var(--text-muted);
 }
+
+/* ===== Contador público (portada) ===== */
+.counter {
+    margin-bottom: 32px;
+    padding: 20px 24px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.counter-number {
+    margin: 4px 0;
+    font-size: clamp(1.8rem, 7vw, 2.6rem);
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.counter-text {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+/* ===== Botón al final de cada ciudad ===== */
+.cta {
+    margin: 8px 0 16px;
+}
+
+/* ===== Mi impacto ===== */
+.impact-total {
+    margin-top: 24px;
+}
+
+.impact-number {
+    font-size: clamp(2rem, 9vw, 3.4rem);
+    color: var(--success-border);
+}
+
+.action-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.action-card {
+    padding: 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.action-card h3 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+}
+
+.action-factor {
+    margin: 0 0 8px;
+    font-weight: 600;
+}
+
+.pending {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+details {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+summary {
+    color: var(--accent);
+    cursor: pointer;
+}
+
+details p {
+    color: var(--text-muted);
+    margin: 8px 0 0;
+}
+
+.action-form-row {
+    display: flex;
+    gap: 8px;
+}
+
+.action-form-row input {
+    flex: 1;
+}
+
+.action-form-row button {
+    margin-top: 0;
+}
+
+/* La tabla se desplaza de lado en celulares en vez de romper la página */
+.table-wrap {
+    overflow-x: auto;
+}
+
+.history {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+.history th,
+.history td {
+    padding: 10px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.history th {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.empty {
+    color: var(--text-muted);
+}

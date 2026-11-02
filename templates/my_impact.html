@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Mi impacto · ClimaPTY{% endblock %}
+
+{% block content %}
+<section class="highlight impact-total">
+    <p class="highlight-text">Has evitado</p>
+    <p class="highlight-number impact-number">hasta {{ "%.2f"|format(user_co2) }} kg de CO₂</p>
+    <p class="highlight-text">
+        "Hasta" porque cada factor es un máximo: mira "¿De dónde sale este número?" en cada acción.
+        {% if pending_count > 0 %}
+            Registros con el factor en verificación (todavía no se suman): {{ pending_count }}.
+        {% endif %}
+    </p>
+</section>
+
+<h2>Registrar una acción</h2>
+<div class="action-list">
+    {% for action in actions %}
+    <article class="action-card">
+        <h3>{{ action.name }}</h3>
+
+        {% if action.co2_kg_per_unit is not none %}
+            <p class="action-factor">Hasta {{ action.co2_kg_per_unit }} kg de CO₂ por {{ action.unit_label }}</p>
+        {% else %}
+            <p class="action-factor pending">Factor en verificación</p>
+        {% endif %}
+
+        <!-- <details> se abre y se cierra solo, sin JavaScript -->
+        <details>
+            <summary>¿De dónde sale este número?</summary>
+            <p>{{ action.assumptions }}</p>
+            {% if action.source_url %}
+                <p><a href="{{ action.source_url }}" target="_blank" rel="noopener">Ver la fuente</a></p>
+            {% endif %}
+        </details>
+
+        <form method="post" class="action-form">
+            <input type="hidden" name="action_id" value="{{ action.id }}">
+            <label for="quantity-{{ action.id }}">Cantidad ({{ action.unit_label }})</label>
+            <div class="action-form-row">
+                <input type="number" id="quantity-{{ action.id }}" name="quantity" value="1" min="1" step="1" required>
+                <button type="submit">Registrar</button>
+            </div>
+        </form>
+    </article>
+    {% endfor %}
+</div>
+
+<h2>Mi historial</h2>
+{% if history %}
+    <div class="table-wrap">
+        <table class="history">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Acción</th>
+                    <th>Cantidad</th>
+                    <th>CO₂ evitado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in history %}
+                <tr>
+                    <td>{{ item.log.date.strftime("%d/%m/%Y") }}</td>
+                    <td>{{ item.log.action.name }}</td>
+                    <td>{{ item.log.quantity }} {{ item.log.action.unit_label }}</td>
+                    {% if item.co2 is not none %}
+                        <td>hasta {{ "%.2f"|format(item.co2) }} kg</td>
+                    {% else %}
+                        <td class="pending">Factor en verificación</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <p class="empty">Todavía no has registrado ninguna acción.</p>
+{% endif %}
+{% endblock %}

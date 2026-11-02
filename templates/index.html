@@ -6,6 +6,14 @@
     <p class="hero-subtitle">Ya pasó aquí. Elige tu ciudad y mira cómo han cambiado su temperatura y su lluvia desde 1950.</p>
 </section>
 
+<!-- Contador público: suma de todos los usuarios -->
+<section class="counter">
+    <p class="counter-text">Entre todos hemos evitado</p>
+    <p class="counter-number">hasta {{ "%.2f"|format(global_co2) }} kg de CO₂</p>
+    <p class="counter-text">con {{ global_actions }} acciones registradas.
+        <a href="{{ url_for('my_impact') }}">Registra las tuyas →</a></p>
+</section>
+
 <section class="city-grid">
     {% for city in cities %}
     <a class="city-card" href="{{ url_for('city_detail', slug=city.slug) }}">
